@@ -1,0 +1,344 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>כרך ב' - מד"ר מסדר גבוה - משפטי הקיום והיחידות</title>
+  <style>
+    :root{
+      /* צבעים */
+      --edge:#6b7280;
+      --lvl1:#a78bfa; --lvl2:#60a5fa; --lvl3:#34d399; --lvl4:#22d3ee;
+      --txt:#e5e7eb;
+
+      /* סקלת גודל כוללת (A+/A−) — משפיעה רק על גובה/פונט/ריווח, לא על רוחב */
+      --k: 1.45; /* אפשר לשנות ל-1.35/1.6 לפי הטעם */
+
+      /* מידות בסיס */
+      --w0:260px; /* ← היה 200px: הרחבנו כרטיסים לרוחב כדי לצמצם ירידות שורה */
+      --pad0:12px; --gap0:60px; --v-gap0:50px; --radius0:16px; --fs0:14px;
+      --shadow:0 6px 18px rgba(0,0,0,.25);
+
+      /* מידות מחושבות — רוחב נשאר קבוע לפי w0; שאר המידות לפי k */
+      --w: var(--w0);
+      --pad: calc(var(--pad0) * var(--k));
+      --gap: var(--gap0);
+      --v-gap: calc(var(--v-gap0) * var(--k));
+      --radius: var(--radius0);
+      --fs: calc(var(--fs0) * var(--k));
+    }
+
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{
+      margin:0; font-family:"Rubik","Segoe UI",Tahoma,Arial,Helvetica,sans-serif;
+      background:linear-gradient(135deg,#0f172a 0%,#111827 60%,#0b1226 100%); color:var(--txt);
+      padding:0;
+    }
+
+    .wrap{width:100vw; height:100vh; display:flex; flex-direction:column; gap:8px}
+
+    .toolbar{
+      padding:10px 18px;
+      display:flex;
+      justify-content:space-between;
+      align-items:center;
+      gap:12px;
+    }
+    .title{font-weight:700}
+
+    .zoom-controls button{
+      margin-inline-start:8px;
+      padding:4px 10px;
+      border-radius:8px;
+      border:1px solid #334155;
+      background:#0b1226;
+      color:var(--txt);
+      cursor:pointer;
+    }
+    .zoom-controls button:hover{filter:brightness(1.2)}
+
+    .stage{
+      flex:1; margin:0 18px 18px; border-radius:18px; overflow:auto;
+      background:rgba(11,18,38,.85); border:1px solid #1f2937; box-shadow:0 12px 32px rgba(0,0,0,.25);
+      position:relative; padding:30px;
+    }
+    .canvas{position:relative; isolation:isolate; padding:10px;}
+    .edges{position:absolute; inset:0; z-index:1; pointer-events:none}
+
+    .layer{position:relative; display:flex; justify-content:center; gap:var(--gap); margin-bottom:var(--v-gap); z-index:2}
+
+    .layer.grid{
+      display:grid;
+      grid-template-columns: repeat(auto-fit, minmax(var(--w), var(--w)));
+      justify-content: space-evenly;  /* לא מותחים לצדדים */
+      gap: var(--gap);
+    }
+
+    .node{
+      position:relative; z-index:3;               /* הצמתים מעל הקווים */
+      width:var(--w);
+      padding:var(--pad);
+      border-radius:var(--radius);
+      background:#0b1226; color:var(--txt);
+      text-align:center;
+
+      font-size:var(--fs);
+      line-height:1.45;                           /* מעט קצר יותר כדי להוריד גובה */
+      white-space:normal;
+      overflow-wrap:break-word; word-break:normal;
+      min-height:60px;
+
+      box-shadow:var(--shadow);
+    }
+
+    /* היררכיית גדלים בין שכבות (פונט בלבד; הרוחב נשאר לפי --w0) */
+    .lvl1{background:linear-gradient(135deg,#6d28d9,#8b5cf6); font-size:calc(var(--fs)*1.6)}
+    .lvl2{background:linear-gradient(135deg,#2563eb,#60a5fa); font-size:calc(var(--fs)*1.4)}
+    .lvl3{background:linear-gradient(135deg,#059669,#34d399); font-size:calc(var(--fs)*1.2)}
+    .lvl4{
+      background:linear-gradient(135deg,#0891b2,#22d3ee);
+      color:#042430;
+      font-size:calc(var(--fs)*1.05);
+      min-height:56px;
+    }
+
+    a.node{text-decoration:underline; display:block; cursor:pointer}
+    a.node:hover{ text-decoration:none; filter:brightness(1.1) }
+
+    .subcol{display:flex; flex-direction:column; align-items:center; gap:16px}
+    .subcol .node.lvl4{margin-top:6px}
+
+    /* במסכים צרים - שתי עמודות אנכיות */
+    @media (max-width:1000px){
+      .layer{
+        flex-direction:column;
+        align-items:center;
+      }
+      
+      #L2{
+        display:grid;
+        grid-template-columns: 1fr 1fr;
+        gap:20px;
+        width:100%;
+      }
+      
+      #chap2{
+        grid-column:1;
+        justify-self:center;
+      }
+      
+      #chap3{
+        grid-column:2;
+        justify-self:center;
+      }
+      
+      #L3{
+        display:grid;
+        grid-template-columns: 1fr 1fr;
+        gap:20px;
+        width:100%;
+        grid-auto-flow:dense;
+      }
+      
+      #col_c2_homo_const { grid-column:1; }
+      #col_c2_inh_const { grid-column:1; }
+      #col_c2_inh_cont { grid-column:1; }
+      #col_c2_reduce { grid-column:1; }
+      #col_c3_homo_const { grid-column:2; }
+    }
+
+    /* במסכים רחבים – מיישרים את "פרק 2/3" מעל 7 העמודות הירוקות */
+    @media (min-width:1400px){
+      #L2{
+        display:grid;
+        grid-template-columns: repeat(7, var(--w));
+        gap: var(--gap);
+        justify-content:center;
+      }
+      #chap2{ grid-column: 1 / span 4; justify-self:center; }
+      #chap3{ grid-column: 5 / span 3; justify-self:center; }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="toolbar">
+      <div class="title">כרך ב' - מד"ר מסדר גבוה - משפטי הקיום והיחידות</div>
+      <div class="zoom-controls">
+        <button id="zout" title="הקטנה">A−</button>
+        <button id="zin"  title="הגדלה">A+</button>
+      </div>
+    </div>
+
+    <div class="stage">
+      <div class="canvas" id="canvas">
+        <!-- שכבת הקשתות -->
+        <svg class="edges" id="edges" xmlns="http://www.w3.org/2000/svg"></svg>
+
+        <!-- שכבה 1 -->
+        <div class="layer" id="L1">
+          <div class="node lvl1" id="root">כרך ב' – מד"ר מסדר גבוה – משפטי הקיום והיחידות</div>
+        </div>
+
+        <!-- שכבה 2 -->
+        <div class="layer" id="L2">
+          <div class="node lvl2" id="chap2">פרק 2 – סדר שני</div>
+          <div class="node lvl2" id="chap3">פרק 3 – סדר גבוה</div>
+        </div>
+
+        <!-- שכבה 3 + שכבה 4 -->
+        <div class="layer grid" id="L3">
+          <div class="subcol" id="col_c2_homo_const">
+            <div class="node lvl3" id="c2_homo_const">אופרטור דיפרנציאלי לינארי מסדר שני </div>
+            <a href="https://opal.openu.ac.il/mod/combopage/view.php?id=6833587" class="node lvl4" id="c2_hc_i1">יחידות הלימוד</a>
+            <a href="https://opal.openu.ac.il/mod/combopage/view.php?id=6836420&from=topNext" class="node lvl4" id="c2_hc_i2">שמירה על פעולת הכפל בסקלר - המחשה אינטראקטיבית </a>
+            <a href="https://opal.openu.ac.il/mod/combopage/view.php?id=6834086&from=topNext" class="node lvl4" id="c2_hc_i3">שמירה על פעולת החיבור - המחשה אינטראקטיבית</a>
+            <a href="https://opal.openu.ac.il/mod/combopage/view.php?id=6836401&from=topNext" class="node lvl4" id="c2_hc_i4">גרעין האופרטור הלינארי - מרחב הפתרונות של מד"ר לינארית הומוגנית מסדר שני - המחשה אינראקטיבית</a>
+          </div>
+
+          <div class="subcol" id="col_c2_inh_const">
+            <div class="node lvl3" id="c2_inh_const">מד"ר לינארית מסדר שני - משפטי הקיום והיחידות</div>
+            <a href="https://opal.openu.ac.il/mod/combopage/view.php?id=6843030" class="node lvl4" id="c2_ic_i1">משפט הקיום והיחידות לבעית התחלה לינארית מסדר שני - יחידות הלימוד</a>
+            <a href="https://opal.openu.ac.il/mod/combopage/view.php?id=6835082&from=topNext" class="node lvl4" id="c2_ic_i2"> מד"ר לינארית הומוגנית מסדר שני - דוגמה אינטראקטיבית 1</a>
+            <a href="https://opal.openu.ac.il/mod/combopage/view.php?id=6834800&from=topNext" class="node lvl4" id="c2_ic_i3">מד"ר לינארית הומוגנית מסדר שני - דוגמה אינטראקטיבית 2</a>
+            <a href="https://opal.openu.ac.il/mod/combopage/view.php?id=6843028&from=topNext" class="node lvl4" id="c2_ic_i4">העשרה - אנימציה אינטראקטיבית - התהגות הפתרונות של מדלי"ה מקדמים קבועים לפי שורשי המשוואה האופיינית</a>
+          </div>
+
+          <div class="subcol" id="col_c2_inh_cont">
+            <div class="node lvl3" id="c2_inh_cont">מד"ר לינארית אי-הומוגנית מסדר שני - השוואת מקדמים</div>
+            <a href="https://opal.openu.ac.il/mod/combopage/view.php?id=6835084" class="node lvl4" id="c2_ir_i1">דוגמה אינטראקטיבית 1  - השוואת מקדמים </a>
+            <a href="https://opal.openu.ac.il/mod/combopage/view.php?id=6835134&from=topNext" class="node lvl4" id="c2_ir_i2">דוגמה אינטראקטיבית  2 - השוואת מקדמים </a>
+          </div>
+
+          <div class="subcol" id="col_c2_reduce">
+            <div class="node lvl3" id="c2_reduce">מד"ר לינארית אי-הומוגנית מסדר שני - וריאציית הפרמטרים</div>     
+            <a href="https://opal.openu.ac.il/mod/combopage/view.php?id=6835091" class="node lvl4" id="c2_rd_i1">Digital Friend  - practice_mode - וריאציית הפרמטרים 1</a>
+            <a href="https://opal.openu.ac.il/mod/combopage/view.php?id=6835170&from=topNext" class="node lvl4" id="c2_rd_i2">Digital Friend  - practice_mode - וריאציית הפרמטרים 2</a>
+            <a href="https://opal.openu.ac.il/mod/combopage/view.php?id=6836454&from=topNext" class="node lvl4" id="c2_rd_i3">Digital Friend  - quiz_mode – ממ"ן 12 – שאלה 5</a>
+          </div>
+
+          <div class="subcol" id="col_c3_homo_const">
+            <div class="node lvl3" id="c3_homo_const">מד"ר לינארית מסדר גבוה</div>
+            <a href="https://opal.openu.ac.il/mod/combopage/view.php?id=6843032" class="node lvl4" id="c3_hc_i1">משפט הקיום והיחידות לבעית התחלה לינארית מסדר גבוה - יחידות הלימוד</a>
+            <a href="https://opal.openu.ac.il/mod/combopage/view.php?id=6843034&from=topNext" class="node lvl4" id="c3_hc_i2">הוורונסקיאן - יחידות הלימוד</a>
+            <a href="https://opal.openu.ac.il/mod/combopage/view.php?id=6843082&from=topNext" class="node lvl4" id="c3_hc_i3">הוורונסקיאן - דוגמאות</a>
+            <a href="https://opal.openu.ac.il/mod/combopage/view.php?id=6841982&from=topNext" class="node lvl4" id="c3_hc_i4">ממ"ן 12 - שאלה 6 - הכוונה אינטראקטיבית - Digital Friend</a>
+          </div>
+
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const edges  = document.getElementById('edges');
+    const canvas = document.getElementById('canvas');
+
+    function collectPairs(){
+      const pairs = [
+        ['root','chap2'], ['root','chap3'],
+        ['chap2','c2_homo_const'], ['chap2','c2_inh_const'], ['chap2','c2_inh_cont'], ['chap2','c2_reduce'],
+        ['chap3','c3_homo_const']
+      ];
+      const map = {
+        'c2_homo_const':'c2_hc',
+        'c2_inh_const':'c2_ic',
+        'c2_inh_cont':'c2_ir',
+        'c2_reduce':'c2_rd',
+        'c3_homo_const':'c3_hc'
+      };
+      Object.entries(map).forEach(([parent, base]) => {
+        for(let i=1;i<=8;i++) pairs.push([parent, `${base}_i${i}`]);
+      });
+      return pairs;
+    }
+
+    function linePath(from, to){
+      const r1 = from.getBoundingClientRect();
+      const r2 = to.getBoundingClientRect();
+      const rc = canvas.getBoundingClientRect();
+
+      const x1 = (r1.left + r1.width/2) - rc.left;
+      const y1 = (r1.bottom) - rc.top;
+      const x2 = (r2.left + r2.width/2) - rc.left;
+      const y2 = (r2.top) - rc.top;
+
+      const mid = (y1 + y2) / 2;
+      return `M ${x1},${y1} C ${x1},${mid} ${x2},${mid} ${x2},${y2}`;
+    }
+
+    function drawEdges(){
+      const w = Math.max(canvas.scrollWidth,  canvas.clientWidth);
+      const h = Math.max(canvas.scrollHeight, canvas.clientHeight);
+      edges.setAttribute('width', w);
+      edges.setAttribute('height', h);
+      edges.innerHTML = '';
+
+      collectPairs().forEach(([a,b]) => {
+        const from = document.getElementById(a);
+        const to   = document.getElementById(b);
+        if(!from || !to) return;
+        const path = document.createElementNS('http://www.w3.org/2000/svg','path');
+        path.setAttribute('d', linePath(from,to));
+        path.setAttribute('fill','none');
+        path.setAttribute('stroke','var(--edge)');
+        path.setAttribute('stroke-width','2');
+        path.setAttribute('stroke-linecap','round');
+        path.setAttribute('stroke-linejoin','round');
+        path.setAttribute('vector-effect','non-scaling-stroke');
+        path.setAttribute('opacity','0.9');
+        edges.appendChild(path);
+      });
+    }
+
+    /* תזמון ציור */
+    const scheduleDraw = (() => {
+      let raf = null;
+      return () => {
+        if (raf) cancelAnimationFrame(raf);
+        raf = requestAnimationFrame(() => { raf = null; drawEdges(); });
+      };
+    })();
+
+    /* האזנות לזום/גלילה של viewport (כולל pinch-zoom) */
+    if (window.visualViewport) {
+      visualViewport.addEventListener('resize', scheduleDraw);
+      visualViewport.addEventListener('scroll',  scheduleDraw);
+    }
+
+    /* שינויי פריסה/גודל של הקאנבס עצמו */
+    new ResizeObserver(scheduleDraw).observe(canvas);
+
+    /* Ctrl + / Ctrl - / Ctrl 0 – לחשב מחדש אחרי שינוי הזום */
+    document.addEventListener('keydown', (e) => {
+      if ((e.ctrlKey || e.metaKey) && ['+','-','0','='].includes(e.key)) {
+        setTimeout(scheduleDraw, 50);
+      }
+    });
+
+    /* fallback: שינוי devicePixelRatio (זום) */
+    let lastDPR = window.devicePixelRatio;
+    setInterval(() => {
+      if (window.devicePixelRatio !== lastDPR) {
+        lastDPR = window.devicePixelRatio;
+        scheduleDraw();
+      }
+    }, 250);
+
+    /* כפתורי A+/A− – משנים רק גובה/פונט/ריווח, לא רוחב */
+    const rootStyle = document.documentElement.style;
+    const getK = () => parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--k')) || 1;
+    const setK = (v) => { v = Math.max(1.0, Math.min(1.8, v)); rootStyle.setProperty('--k', v); scheduleDraw(); };
+
+    const zin  = document.getElementById('zin');
+    const zout = document.getElementById('zout');
+    if (zin)  zin.addEventListener('click',  () => setK(getK() + 0.1));
+    if (zout) zout.addEventListener('click', () => setK(getK() - 0.1));
+
+    /* ציור ראשון + על שינוי גודל */
+    window.addEventListener('load', () => scheduleDraw());
+    window.addEventListener('resize', scheduleDraw);
+  </script>
+</body>
+</html>
